@@ -73,7 +73,7 @@ const createEsbuildConfig = (config, assetsManifestChannel, options) => {
     rootDirectory
   } = config;
   let outputCss = false;
-  let plugins = [deprecatedRemixPackagePlugin.deprecatedRemixPackagePlugin(options.onWarning), config.future.unstable_cssModules ? cssModulesPlugin.cssModulesPlugin({
+  let plugins = [config.plugins || null, deprecatedRemixPackagePlugin.deprecatedRemixPackagePlugin(options.onWarning), config.future.unstable_cssModules ? cssModulesPlugin.cssModulesPlugin({
     mode,
     rootDirectory,
     outputCss

@@ -105,7 +105,7 @@ const createEsbuildConfig = (build, config, options) => {
     rootDirectory
   } = config;
   let outputCss = isCssBuild;
-  let plugins = [deprecatedRemixPackagePlugin.deprecatedRemixPackagePlugin(options.onWarning), isCssBundlingEnabled(config) && isCssBuild ? cssBundleEntryModulePlugin.cssBundleEntryModulePlugin(config) : null, config.future.unstable_cssModules ? cssModulesPlugin.cssModulesPlugin({
+  let plugins = [config.plugins || null, deprecatedRemixPackagePlugin.deprecatedRemixPackagePlugin(options.onWarning), isCssBundlingEnabled(config) && isCssBuild ? cssBundleEntryModulePlugin.cssBundleEntryModulePlugin(config) : null, config.future.unstable_cssModules ? cssModulesPlugin.cssModulesPlugin({
     mode,
     rootDirectory,
     outputCss

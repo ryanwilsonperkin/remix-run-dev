@@ -206,6 +206,7 @@ async function readConfig(remixRoot, serverMode = serverModes.ServerMode.Product
     v2_meta: ((_appConfig$future6 = appConfig.future) === null || _appConfig$future6 === void 0 ? void 0 : _appConfig$future6.v2_meta) === true,
     v2_routeConvention: ((_appConfig$future7 = appConfig.future) === null || _appConfig$future7 === void 0 ? void 0 : _appConfig$future7.v2_routeConvention) === true
   };
+  let plugins = appConfig.plugins || [];
   return {
     appDirectory,
     cacheDirectory,
@@ -229,7 +230,8 @@ async function readConfig(remixRoot, serverMode = serverModes.ServerMode.Product
     mdx,
     watchPaths,
     tsconfigPath,
-    future
+    future,
+    plugins
   };
 }
 function addTrailingSlash(path) {
