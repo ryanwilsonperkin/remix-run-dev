@@ -1,5 +1,5 @@
 /**
- * @remix-run/dev v1.11.1
+ * @remix-run/dev v1.12.0
  *
  * Copyright (c) Remix Software Inc.
  *
@@ -49,7 +49,6 @@ async function createAssetsManifest({
   function resolveImports(imports) {
     return imports.filter(im => im.kind === "import-statement").map(im => resolveUrl(im.path));
   }
-  let entryClientFile = path__namespace.resolve(config.appDirectory, config.entryClientFile);
   let routesByFile = Object.keys(config.routes).reduce((map, key) => {
     let route = config.routes[key];
     map.set(route.file, map.has(route.file) ? [...map.get(route.file), route] : [route]);
@@ -60,7 +59,7 @@ async function createAssetsManifest({
   for (let key of Object.keys(metafile.outputs).sort()) {
     let output = metafile.outputs[key];
     if (!output.entryPoint) continue;
-    if (path__namespace.resolve(output.entryPoint) === entryClientFile) {
+    if (path__namespace.resolve(output.entryPoint) === config.entryClientFilePath) {
       entry = {
         module: resolveUrl(key),
         imports: resolveImports(output.imports)

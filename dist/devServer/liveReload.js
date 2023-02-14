@@ -1,5 +1,5 @@
 /**
- * @remix-run/dev v1.11.1
+ * @remix-run/dev v1.12.0
  *
  * Copyright (c) Remix Software Inc.
  *
@@ -17,7 +17,6 @@ var fse = require('fs-extra');
 var path = require('path');
 var prettyMs = require('pretty-ms');
 var WebSocket = require('ws');
-var channel = require('../channel.js');
 require('esbuild');
 require('module');
 require('@esbuild-plugins/node-modules-polyfill');
@@ -28,6 +27,20 @@ require('fs');
 require('remark-mdx-frontmatter');
 require('tsconfig-paths');
 require('crypto');
+require('url');
+require('postcss-load-config');
+require('node:child_process');
+require('node:path');
+require('node:url');
+require('get-port');
+require('@npmcli/package-json');
+require('minimatch');
+require('../config/serverModes.js');
+require('prettier');
+require('tsconfig-paths/lib/tsconfig-loader');
+require('json5');
+require('../colors.js');
+require('fast-glob');
 require('postcss-modules');
 require('../compiler/plugins/cssSideEffectImportsPlugin.js');
 require('@vanilla-extract/integration');
@@ -43,7 +56,11 @@ var prettyMs__default = /*#__PURE__*/_interopDefaultLegacy(prettyMs);
 var WebSocket__default = /*#__PURE__*/_interopDefaultLegacy(WebSocket);
 
 const relativePath = file => path__default["default"].relative(process.cwd(), file);
+let clean = config => {
+  fse__default["default"].emptyDirSync(config.assetsBuildDirectory);
+};
 async function liveReload(config, options = {}) {
+  clean(config);
   let wss = new WebSocket__default["default"].Server({
     port: config.devServerPort
   });
@@ -68,6 +85,7 @@ async function liveReload(config, options = {}) {
     mode: options.mode,
     onInitialBuild: options.onInitialBuild,
     onRebuildStart() {
+      clean(config);
       log("Rebuilding...");
     },
     onRebuildFinish(durationMs) {
@@ -86,16 +104,11 @@ async function liveReload(config, options = {}) {
       log(`File deleted: ${relativePath(file)}`);
     }
   });
-  let channel$1 = channel.createChannel();
-  exitHook__default["default"](async () => {
-    // cleanup when process exits e.g. user hits CTRL-C
+  exitHook__default["default"](() => clean(config));
+  return async () => {
     wss.close();
     await dispose();
-    fse__default["default"].emptyDirSync(config.assetsBuildDirectory);
-    fse__default["default"].rmSync(config.serverBuildPath);
-    channel$1.write();
-  });
-  return channel$1.read();
+  };
 }
 
 exports.liveReload = liveReload;

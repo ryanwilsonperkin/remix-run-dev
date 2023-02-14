@@ -1,5 +1,5 @@
 /**
- * @remix-run/dev v1.11.1
+ * @remix-run/dev v1.12.0
  *
  * Copyright (c) Remix Software Inc.
  *
@@ -11,6 +11,12 @@
 'use strict';
 
 Object.defineProperty(exports, '__esModule', { value: true });
+
+var path = require('node:path');
+
+function _interopDefaultLegacy (e) { return e && typeof e === 'object' && 'default' in e ? e : { 'default': e }; }
+
+var path__default = /*#__PURE__*/_interopDefaultLegacy(path);
 
 const cssBundleEntryModuleId = "__remix_cssBundleEntryModule__";
 const filter = new RegExp(`^${cssBundleEntryModuleId}$`);
@@ -41,7 +47,7 @@ function cssBundleEntryModulePlugin(config) {
           loader: "js",
           contents: [
           // These need to be exports to avoid tree shaking
-          `export * as entryClient from ${JSON.stringify(`./${config.entryClientFile}`)};`, ...Object.keys(config.routes).map((key, index) => {
+          `export * as entryClient from ${JSON.stringify(path__default["default"].relative(config.rootDirectory, config.entryClientFilePath))};`, ...Object.keys(config.routes).map((key, index) => {
             let route = config.routes[key];
             return `export * as route${index} from ${JSON.stringify(`./${route.file}`)};`;
           })].join("\n")

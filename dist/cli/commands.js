@@ -1,5 +1,5 @@
 /**
- * @remix-run/dev v1.11.1
+ * @remix-run/dev v1.12.0
  *
  * Copyright (c) Remix Software Inc.
  *
@@ -18,6 +18,7 @@ var fse = require('fs-extra');
 var ora = require('ora');
 var prettyMs = require('pretty-ms');
 var esbuild = require('esbuild');
+var NPMCliPackageJson = require('@npmcli/package-json');
 var colors = require('../colors.js');
 var build$1 = require('../compiler/build.js');
 require('chokidar');
@@ -33,14 +34,18 @@ require('fs');
 require('remark-mdx-frontmatter');
 require('tsconfig-paths');
 require('crypto');
+require('url');
+require('postcss-load-config');
 require('postcss-modules');
 require('../compiler/plugins/cssSideEffectImportsPlugin.js');
 require('@vanilla-extract/integration');
+require('node:path');
 require('jsesc');
 var getPreferredPackageManager = require('./getPreferredPackageManager.js');
 var options = require('../compiler/options.js');
 var liveReload = require('../devServer/liveReload.js');
 var serve = require('../devServer/serve.js');
+var devServer2 = require('../devServer2.js');
 var format = require('../config/format.js');
 var logging = require('../logging.js');
 var create$1 = require('./create.js');
@@ -48,6 +53,7 @@ var setup$1 = require('./setup.js');
 var index = require('../codemod/index.js');
 var error = require('../codemod/utils/error.js');
 var task = require('../codemod/utils/task.js');
+var useJavascript = require('./useJavascript.js');
 
 function _interopDefaultLegacy (e) { return e && typeof e === 'object' && 'default' in e ? e : { 'default': e }; }
 
@@ -74,6 +80,7 @@ var fse__namespace = /*#__PURE__*/_interopNamespace(fse);
 var ora__default = /*#__PURE__*/_interopDefaultLegacy(ora);
 var prettyMs__default = /*#__PURE__*/_interopDefaultLegacy(prettyMs);
 var esbuild__namespace = /*#__PURE__*/_interopNamespace(esbuild);
+var NPMCliPackageJson__default = /*#__PURE__*/_interopDefaultLegacy(NPMCliPackageJson);
 
 async function create({
   appTemplate,
@@ -185,15 +192,21 @@ async function watch(remixRootOrConfig, modeArg) {
   let mode = options.parseMode(modeArg ?? "", "development");
   console.log(`Watching Remix app in ${mode} mode...`);
   let config$1 = typeof remixRootOrConfig === "object" ? remixRootOrConfig : await config.readConfig(remixRootOrConfig);
-  return liveReload.liveReload(config$1, {
+  liveReload.liveReload(config$1, {
     mode,
     onInitialBuild: durationMs => console.log(`💿 Built in ${prettyMs__default["default"](durationMs)}`)
   });
+  return await new Promise(() => {});
 }
-async function dev(remixRoot, modeArg, port) {
+async function dev(remixRoot, modeArg, flags = {}) {
   let config$1 = await config.readConfig(remixRoot);
   let mode = options.parseMode(modeArg ?? "", "development");
-  return serve.serve(config$1, mode, port);
+  if (config$1.future.unstable_dev !== false) {
+    await devServer2.serve(config$1, flags);
+    return await new Promise(() => {});
+  }
+  await serve.serve(config$1, mode, flags.port);
+  return await new Promise(() => {});
 }
 async function codemod(codemodName, projectDir, {
   dry = false,
@@ -221,11 +234,91 @@ async function codemod(codemodName, projectDir, {
     throw error$1;
   }
 }
+let clientEntries = ["entry.client.tsx", "entry.client.js", "entry.client.jsx"];
+let serverEntries = ["entry.server.tsx", "entry.server.js", "entry.server.jsx"];
+let entries = ["entry.client", "entry.server"];
+
+// @ts-expect-error available in node 12+
+// https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Intl/ListFormat#browser_compatibility
+let listFormat = new Intl.ListFormat("en", {
+  style: "long",
+  type: "conjunction"
+});
+async function generateEntry(entry, remixRoot, useTypeScript = true) {
+  let config$1 = await config.readConfig(remixRoot);
+
+  // if no entry passed, attempt to create both
+  if (!entry) {
+    await generateEntry("entry.client", remixRoot, useTypeScript);
+    await generateEntry("entry.server", remixRoot, useTypeScript);
+    return;
+  }
+  if (!entries.includes(entry)) {
+    let entriesArray = Array.from(entries);
+    let list = listFormat.format(entriesArray);
+    console.error(colors.error(`Invalid entry file. Valid entry files are ${list}`));
+    return;
+  }
+  let pkgJson = await NPMCliPackageJson__default["default"].load(config$1.rootDirectory);
+  let deps = pkgJson.content.dependencies ?? {};
+  let serverRuntime = deps["@remix-run/deno"] ? "deno" : deps["@remix-run/cloudflare"] ? "cloudflare" : deps["@remix-run/node"] ? "node" : undefined;
+  if (!serverRuntime) {
+    let serverRuntimes = ["@remix-run/deno", "@remix-run/cloudflare", "@remix-run/node"];
+    let formattedList = listFormat.format(serverRuntimes);
+    console.error(colors.error(`Could not determine server runtime. Please install one of the following: ${formattedList}`));
+    return;
+  }
+  let clientRuntime = deps["@remix-run/react"] ? "react" : undefined;
+  if (!clientRuntime) {
+    console.error(colors.error(`Could not determine runtime. Please install the following: @remix-run/react`));
+    return;
+  }
+  let defaultsDirectory = path__namespace.resolve(__dirname, "..", "config", "defaults");
+  let defaultEntryClient = path__namespace.resolve(defaultsDirectory, `entry.client.${clientRuntime}.tsx`);
+  let defaultEntryServer = path__namespace.resolve(defaultsDirectory, `entry.server.${serverRuntime}.tsx`);
+  let isServerEntry = entry === "entry.server";
+  let contents = isServerEntry ? await createServerEntry(config$1.rootDirectory, config$1.appDirectory, defaultEntryServer) : await createClientEntry(config$1.rootDirectory, config$1.appDirectory, defaultEntryClient);
+  let outputExtension = useTypeScript ? "tsx" : "jsx";
+  let outputEntry = `${entry}.${outputExtension}`;
+  let outputFile = path__namespace.resolve(config$1.appDirectory, outputEntry);
+  if (!useTypeScript) {
+    let javascript = useJavascript.transpile(contents, {
+      cwd: config$1.rootDirectory,
+      filename: isServerEntry ? defaultEntryServer : defaultEntryClient
+    });
+    await fse__namespace.writeFile(outputFile, javascript, "utf-8");
+  } else {
+    await fse__namespace.writeFile(outputFile, contents, "utf-8");
+  }
+  console.log(colors.blue(`Entry file ${entry} created at ${path__namespace.relative(config$1.rootDirectory, outputFile)}.`));
+}
+async function checkForEntry(rootDirectory, appDirectory, entries) {
+  for (let entry of entries) {
+    let entryPath = path__namespace.resolve(appDirectory, entry);
+    let exists = await fse__namespace.pathExists(entryPath);
+    if (exists) {
+      let relative = path__namespace.relative(rootDirectory, entryPath);
+      console.error(colors.error(`Entry file ${relative} already exists.`));
+      return process.exit(1);
+    }
+  }
+}
+async function createServerEntry(rootDirectory, appDirectory, inputFile) {
+  await checkForEntry(rootDirectory, appDirectory, serverEntries);
+  let contents = await fse__namespace.readFile(inputFile, "utf-8");
+  return contents;
+}
+async function createClientEntry(rootDirectory, appDirectory, inputFile) {
+  await checkForEntry(rootDirectory, appDirectory, clientEntries);
+  let contents = await fse__namespace.readFile(inputFile, "utf-8");
+  return contents;
+}
 
 exports.build = build;
 exports.codemod = codemod;
 exports.create = create;
 exports.dev = dev;
+exports.generateEntry = generateEntry;
 exports.init = init;
 exports.routes = routes;
 exports.setup = setup;

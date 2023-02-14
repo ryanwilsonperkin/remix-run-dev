@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * @remix-run/dev v1.11.1
+ * @remix-run/dev v1.12.0
  *
  * Copyright (c) Remix Software Inc.
  *
@@ -20,12 +20,14 @@ const assets = undefined;
 const entry = undefined;
 const routes = undefined;
 const future = undefined;
+const dev = undefined;
 const publicPath = undefined;
 // prettier-ignore
 const assetsBuildDirectory = undefined;
 
 exports.assets = assets;
 exports.assetsBuildDirectory = assetsBuildDirectory;
+exports.dev = dev;
 exports.entry = entry;
 exports.future = future;
 exports.publicPath = publicPath;

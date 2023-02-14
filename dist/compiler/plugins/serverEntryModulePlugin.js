@@ -1,5 +1,5 @@
 /**
- * @remix-run/dev v1.11.1
+ * @remix-run/dev v1.12.0
  *
  * Copyright (c) Remix Software Inc.
  *
@@ -20,7 +20,7 @@ var virtualModules = require('../virtualModules.js');
  * for you to consume the build in a custom server entry that is also fed through
  * the compiler.
  */
-function serverEntryModulePlugin(config) {
+function serverEntryModulePlugin(config, options = {}) {
   let filter = virtualModules.serverBuildVirtualModule.filter;
   return {
     name: "server-entry-module",
@@ -42,7 +42,7 @@ function serverEntryModulePlugin(config) {
           resolveDir: config.appDirectory,
           loader: "js",
           contents: `
-import * as entryServer from ${JSON.stringify(`./${config.entryServerFile}`)};
+import * as entryServer from ${JSON.stringify(config.entryServerFilePath)};
 ${Object.keys(config.routes).map((key, index) => {
             // IMPORTANT: Any values exported from this generated module must also be
             // typed in `packages/remix-dev/server-build.ts` to avoid tsc errors.
@@ -54,6 +54,9 @@ ${Object.keys(config.routes).map((key, index) => {
   export const future = ${JSON.stringify(config.future)};
   export const publicPath = ${JSON.stringify(config.publicPath)};
   export const entry = { module: entryServer };
+  ${options.liveReloadPort ? `export const dev = ${JSON.stringify({
+            liveReloadPort: options.liveReloadPort
+          })}` : ""}
   export const routes = {
     ${Object.keys(config.routes).map((key, index) => {
             let route = config.routes[key];

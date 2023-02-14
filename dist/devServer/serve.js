@@ -1,5 +1,5 @@
 /**
- * @remix-run/dev v1.11.1
+ * @remix-run/dev v1.12.0
  *
  * Copyright (c) Remix Software Inc.
  *
@@ -58,24 +58,22 @@ async function serve(config, mode, portPreference) {
     next();
   });
   app.use(createApp(config.serverBuildPath, mode, config.publicPath, config.assetsBuildDirectory));
+  let dispose = await liveReload.liveReload(config);
   let server;
+  let onListen = () => {
+    var _Object$values$flat$f;
+    let address = process.env.HOST || ((_Object$values$flat$f = Object.values(os__default["default"].networkInterfaces()).flat().find(ip => String(ip === null || ip === void 0 ? void 0 : ip.family).includes("4") && !(ip !== null && ip !== void 0 && ip.internal))) === null || _Object$values$flat$f === void 0 ? void 0 : _Object$values$flat$f.address);
+    if (!address) {
+      console.log(`Remix App Server started at http://localhost:${port}`);
+    } else {
+      console.log(`Remix App Server started at http://localhost:${port} (http://${address}:${port})`);
+    }
+  };
   try {
-    await liveReload.liveReload(config, {
-      onInitialBuild: () => {
-        let onListen = () => {
-          var _Object$values$flat$f;
-          let address = process.env.HOST || ((_Object$values$flat$f = Object.values(os__default["default"].networkInterfaces()).flat().find(ip => String(ip === null || ip === void 0 ? void 0 : ip.family).includes("4") && !(ip !== null && ip !== void 0 && ip.internal))) === null || _Object$values$flat$f === void 0 ? void 0 : _Object$values$flat$f.address);
-          if (!address) {
-            console.log(`Remix App Server started at http://localhost:${port}`);
-          } else {
-            console.log(`Remix App Server started at http://localhost:${port} (http://${address}:${port})`);
-          }
-        };
-        server = process.env.HOST ? app.listen(port, process.env.HOST, onListen) : app.listen(port, onListen);
-      }
-    });
-  } finally {
+    server = process.env.HOST ? app.listen(port, process.env.HOST, onListen) : app.listen(port, onListen);
+  } catch {
     var _server;
+    dispose();
     (_server = server) === null || _server === void 0 ? void 0 : _server.close();
   }
 }

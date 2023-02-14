@@ -1,5 +1,5 @@
 /**
- * @remix-run/dev v1.11.1
+ * @remix-run/dev v1.12.0
  *
  * Copyright (c) Remix Software Inc.
  *
@@ -17,6 +17,7 @@ var integration = require('@vanilla-extract/integration');
 var fse = require('fs-extra');
 var esbuild = require('esbuild');
 var loaders = require('../loaders.js');
+var postcss = require('../utils/postcss.js');
 
 function _interopNamespace(e) {
   if (e && e.__esModule) return e;
@@ -48,10 +49,20 @@ function vanillaExtractPlugin({
 }) {
   return {
     name: pluginName,
-    setup(build) {
+    async setup(build) {
+      let postcssProcessor = await postcss.getPostcssProcessor({
+        config,
+        context: {
+          vanillaExtract: true
+        }
+      });
       let {
         rootDirectory
       } = config;
+
+      // Resolve virtual CSS files first to avoid resolving the same
+      // file multiple times since this filter is more specific and
+      // doesn't require a file system lookup.
       build.onResolve({
         filter: integration.virtualCssFileFilter
       }, args => {
@@ -60,6 +71,7 @@ function vanillaExtractPlugin({
           namespace
         };
       });
+      vanillaExtractSideEffectsPlugin.setup(build);
       build.onLoad({
         filter: integration.virtualCssFileFilter,
         namespace
@@ -71,6 +83,12 @@ function vanillaExtractPlugin({
           fileName
         } = await integration.getSourceFromVirtualCssFile(path$1);
         let resolveDir = path.dirname(path.join(rootDirectory, fileName));
+        if (postcssProcessor) {
+          source = (await postcssProcessor.process(source, {
+            from: path$1,
+            to: path$1
+          })).css;
+        }
         return {
           contents: source,
           loader: "css",
@@ -94,7 +112,7 @@ function vanillaExtractPlugin({
           external: ["@vanilla-extract"],
           platform: "node",
           write: false,
-          plugins: [vanillaExtractTransformPlugin({
+          plugins: [vanillaExtractSideEffectsPlugin, vanillaExtractTransformPlugin({
             rootDirectory,
             identOption
           })],
@@ -171,5 +189,37 @@ function vanillaExtractTransformPlugin({
     }
   };
 }
+
+/**
+ * This plugin marks all .css.ts/js files as having side effects. This is
+ * to ensure that all usages of `globalStyle` are included in the CSS bundle,
+ * even if a .css.ts/js file has no exports or is otherwise tree-shaken.
+ */
+const vanillaExtractSideEffectsPlugin = {
+  name: "vanilla-extract-side-effects-plugin",
+  setup(build) {
+    let preventInfiniteLoop = {};
+    build.onResolve({
+      filter: /\.css(\.(j|t)sx?)?(\?.*)?$/,
+      namespace: "file"
+    }, async args => {
+      if (args.pluginData === preventInfiniteLoop) {
+        return null;
+      }
+      let resolvedPath = (await build.resolve(args.path, {
+        resolveDir: args.resolveDir,
+        kind: args.kind,
+        pluginData: preventInfiniteLoop
+      })).path;
+      if (!integration.cssFileFilter.test(resolvedPath)) {
+        return null;
+      }
+      return {
+        path: resolvedPath,
+        sideEffects: true
+      };
+    });
+  }
+};
 
 exports.vanillaExtractPlugin = vanillaExtractPlugin;

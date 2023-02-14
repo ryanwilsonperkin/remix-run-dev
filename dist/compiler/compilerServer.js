@@ -1,5 +1,5 @@
 /**
- * @remix-run/dev v1.11.1
+ * @remix-run/dev v1.12.0
  *
  * Copyright (c) Remix Software Inc.
  *
@@ -64,29 +64,27 @@ const createEsbuildConfig = (config, assetsManifestChannel, options) => {
       loader: "ts"
     };
   }
-  let isCloudflareRuntime = ["cloudflare-pages", "cloudflare-workers"].includes(config.serverBuildTarget ?? "");
-  let isDenoRuntime = config.serverBuildTarget === "deno";
   let {
     mode
   } = options;
-  let {
-    rootDirectory
-  } = config;
   let outputCss = false;
   let plugins = [...config.plugins, deprecatedRemixPackagePlugin.deprecatedRemixPackagePlugin(options.onWarning), config.future.unstable_cssModules ? cssModulesPlugin.cssModulesPlugin({
+    config,
     mode,
-    rootDirectory,
     outputCss
   }) : null, config.future.unstable_vanillaExtract ? vanillaExtractPlugin.vanillaExtractPlugin({
     config,
     mode,
     outputCss
   }) : null, config.future.unstable_cssSideEffectImports ? cssSideEffectImportsPlugin.cssSideEffectImportsPlugin({
-    rootDirectory
+    config,
+    options
   }) : null, cssFilePlugin.cssFilePlugin({
-    mode,
-    rootDirectory
-  }), urlImportsPlugin.urlImportsPlugin(), mdx.mdxPlugin(config), emptyModulesPlugin.emptyModulesPlugin(config, /\.client(\.[jt]sx?)?$/), serverRouteModulesPlugin.serverRouteModulesPlugin(config), serverEntryModulePlugin.serverEntryModulePlugin(config), serverAssetsManifestPlugin.serverAssetsManifestPlugin(assetsManifestChannel.read()), serverBareModulesPlugin.serverBareModulesPlugin(config, options.onWarning)].filter(isNotNull);
+    config,
+    options
+  }), urlImportsPlugin.urlImportsPlugin(), mdx.mdxPlugin(config), emptyModulesPlugin.emptyModulesPlugin(config, /\.client(\.[jt]sx?)?$/), serverRouteModulesPlugin.serverRouteModulesPlugin(config), serverEntryModulePlugin.serverEntryModulePlugin(config, {
+    liveReloadPort: options.liveReloadPort
+  }), serverAssetsManifestPlugin.serverAssetsManifestPlugin(assetsManifestChannel.read()), serverBareModulesPlugin.serverBareModulesPlugin(config, options.onWarning)].filter(isNotNull);
   if (config.serverPlatform !== "node") {
     plugins.unshift(nodeModulesPolyfill.NodeModulesPolyfillPlugin());
   }
@@ -95,7 +93,7 @@ const createEsbuildConfig = (config, assetsManifestChannel, options) => {
     stdin,
     entryPoints,
     outfile: config.serverBuildPath,
-    conditions: isCloudflareRuntime ? ["worker"] : isDenoRuntime ? ["deno", "worker"] : undefined,
+    conditions: config.serverConditions,
     platform: config.serverPlatform,
     format: config.serverModuleFormat,
     treeShaking: true,
@@ -107,8 +105,8 @@ const createEsbuildConfig = (config, assetsManifestChannel, options) => {
     // PR makes dev mode behave closer to production in terms of dead
     // code elimination / tree shaking is concerned.
     minifySyntax: true,
-    minify: options.mode === "production" && isCloudflareRuntime,
-    mainFields: isCloudflareRuntime ? ["browser", "module", "main"] : config.serverModuleFormat === "esm" ? ["module", "main"] : ["main", "module"],
+    minify: options.mode === "production" && config.serverMinify,
+    mainFields: config.serverMainFields,
     target: options.target,
     loader: loaders.loaders,
     bundle: true,

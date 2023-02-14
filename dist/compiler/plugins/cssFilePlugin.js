@@ -1,5 +1,5 @@
 /**
- * @remix-run/dev v1.11.1
+ * @remix-run/dev v1.12.0
  *
  * Copyright (c) Remix Software Inc.
  *
@@ -16,6 +16,7 @@ var path = require('path');
 var fse = require('fs-extra');
 var esbuild = require('esbuild');
 var invariant = require('../../invariant.js');
+var postcss = require('../utils/postcss.js');
 
 function _interopDefaultLegacy (e) { return e && typeof e === 'object' && 'default' in e ? e : { 'default': e }; }
 
@@ -50,19 +51,20 @@ function normalizePathSlashes(p) {
  * This plugin loads css files with the "css" loader (bundles and moves assets to assets directory)
  * and exports the url of the css file as its default export.
  */
-function cssFilePlugin(options) {
+function cssFilePlugin({
+  config,
+  options
+}) {
   return {
     name: "css-file",
     async setup(build) {
       let buildOps = build.initialOptions;
+      let postcssProcessor = await postcss.getPostcssProcessor({
+        config
+      });
       build.onLoad({
         filter: /\.css$/
       }, async args => {
-        let {
-          outfile,
-          outdir,
-          assetNames
-        } = buildOps;
         let {
           metafile,
           outputFiles,
@@ -74,13 +76,14 @@ function cssFilePlugin(options) {
           minifySyntax: true,
           metafile: true,
           write: false,
-          sourcemap: false,
+          sourcemap: Boolean(options.sourcemap && postcssProcessor),
+          // We only need source maps if we're processing the CSS with PostCSS
           incremental: false,
           splitting: false,
           stdin: undefined,
           outfile: undefined,
-          outdir: outfile ? path__namespace.dirname(outfile) : outdir,
-          entryNames: assetNames,
+          outdir: config.assetsBuildDirectory,
+          entryNames: buildOps.assetNames,
           entryPoints: [args.path],
           loader: {
             ...buildOps.loader,
@@ -105,7 +108,10 @@ function cssFilePlugin(options) {
                 }
               });
             }
-          }]
+          }, ...(postcssProcessor ? [postcssPlugin({
+            postcssProcessor,
+            options
+          })] : [])]
         });
         if (errors && errors.length) {
           return {
@@ -118,9 +124,9 @@ function cssFilePlugin(options) {
         } = metafile;
         let entry = Object.keys(outputs).find(out => outputs[out].entryPoint);
         invariant["default"](entry, "entry point not found");
-        let normalizedEntry = path__namespace.resolve(options.rootDirectory, normalizePathSlashes(entry));
+        let normalizedEntry = path__namespace.resolve(config.rootDirectory, normalizePathSlashes(entry));
         let entryFile = outputFiles.find(file => {
-          return path__namespace.resolve(options.rootDirectory, normalizePathSlashes(file.path)) === normalizedEntry;
+          return path__namespace.resolve(config.rootDirectory, normalizePathSlashes(file.path)) === normalizedEntry;
         });
         invariant["default"](entryFile, "entry file not found");
         let outputFilesWithoutEntry = outputFiles.filter(file => file !== entryFile);
@@ -144,6 +150,31 @@ function cssFilePlugin(options) {
             return arr;
           }, []),
           warnings
+        };
+      });
+    }
+  };
+}
+function postcssPlugin({
+  postcssProcessor,
+  options
+}) {
+  return {
+    name: "postcss-plugin",
+    async setup(build) {
+      build.onLoad({
+        filter: /\.css$/,
+        namespace: "file"
+      }, async args => {
+        let contents = await fse__namespace.readFile(args.path, "utf-8");
+        contents = (await postcssProcessor.process(contents, {
+          from: args.path,
+          to: args.path,
+          map: options.sourcemap
+        })).css;
+        return {
+          contents,
+          loader: "css"
         };
       });
     }

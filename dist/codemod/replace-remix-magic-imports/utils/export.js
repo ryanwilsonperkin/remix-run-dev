@@ -1,5 +1,5 @@
 /**
- * @remix-run/dev v1.11.1
+ * @remix-run/dev v1.12.0
  *
  * Copyright (c) Remix Software Inc.
  *
@@ -31,7 +31,7 @@ const defaultRuntimeExports = {
 };
 const exportNamesByRuntime = {
   cloudflare: {
-    value: ["createCloudflareKVSessionStorage"]
+    value: ["createCloudflareKVSessionStorage", "createWorkersKVSessionStorage"]
   },
   node: {
     type: ["HeadersInit", "RequestInfo", "RequestInit", "ResponseInit"],

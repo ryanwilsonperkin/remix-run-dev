@@ -1,5 +1,5 @@
 /**
- * @remix-run/dev v1.11.1
+ * @remix-run/dev v1.12.0
  *
  * Copyright (c) Remix Software Inc.
  *
@@ -29,7 +29,7 @@ var colors = require('../colors.js');
 var invariant = require('../invariant.js');
 var packageJson = require('../package.json');
 var getPreferredPackageManager = require('./getPreferredPackageManager.js');
-var index = require('./migrate/migrations/convert-to-javascript/index.js');
+var useJavascript = require('./useJavascript.js');
 
 function _interopDefaultLegacy (e) { return e && typeof e === 'object' && 'default' in e ? e : { 'default': e }; }
 
@@ -189,10 +189,8 @@ async function createApp({
     spaces: 2
   });
   if (!useTypeScript && fse__default["default"].existsSync(path__default["default"].join(projectDir, "tsconfig.json"))) {
-    let spinner = ora__default["default"]("Migrating template to JavaScript…").start();
-    await index.convertToJavaScript(projectDir, {
-      interactive: false
-    });
+    let spinner = ora__default["default"]("Converting template to JavaScript…").start();
+    await useJavascript.convert(projectDir);
     spinner.stop();
     spinner.clear();
   }

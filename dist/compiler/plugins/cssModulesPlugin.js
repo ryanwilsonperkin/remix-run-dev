@@ -1,5 +1,5 @@
 /**
- * @remix-run/dev v1.11.1
+ * @remix-run/dev v1.12.0
  *
  * Copyright (c) Remix Software Inc.
  *
@@ -14,14 +14,15 @@ Object.defineProperty(exports, '__esModule', { value: true });
 
 var path = require('path');
 var fse = require('fs-extra');
-var postcss = require('postcss');
+var postcss$1 = require('postcss');
 var postcssModules = require('postcss-modules');
+var postcss = require('../utils/postcss.js');
 
 function _interopDefaultLegacy (e) { return e && typeof e === 'object' && 'default' in e ? e : { 'default': e }; }
 
 var path__default = /*#__PURE__*/_interopDefaultLegacy(path);
 var fse__default = /*#__PURE__*/_interopDefaultLegacy(fse);
-var postcss__default = /*#__PURE__*/_interopDefaultLegacy(postcss);
+var postcss__default = /*#__PURE__*/_interopDefaultLegacy(postcss$1);
 var postcssModules__default = /*#__PURE__*/_interopDefaultLegacy(postcssModules);
 
 const pluginName = "css-modules-plugin";
@@ -29,10 +30,17 @@ const namespace = `${pluginName}-ns`;
 const cssModulesFilter = /\.module\.css$/;
 const compiledCssQuery = "?css-modules-plugin-compiled-css";
 const compiledCssFilter = /\?css-modules-plugin-compiled-css$/;
-const cssModulesPlugin = options => {
+const cssModulesPlugin = ({
+  config,
+  mode,
+  outputCss
+}) => {
   return {
     name: pluginName,
     setup: async build => {
+      let postcssPlugins = await postcss.loadPostcssPlugins({
+        config
+      });
       build.onResolve({
         filter: cssModulesFilter,
         namespace: "file"
@@ -56,8 +64,8 @@ const cssModulesPlugin = options => {
         let exports = {};
         let {
           css: compiledCss
-        } = await postcss__default["default"]([postcssModules__default["default"]({
-          generateScopedName: options.mode === "production" ? "[hash:base64:5]" : "[name]__[local]__[hash:base64:5]",
+        } = await postcss__default["default"]([...postcssPlugins, postcssModules__default["default"]({
+          generateScopedName: mode === "production" ? "[hash:base64:5]" : "[name]__[local]__[hash:base64:5]",
           getJSON: function (_, json) {
             exports = json;
           },
@@ -76,7 +84,7 @@ const cssModulesPlugin = options => {
         // a virtual CSS file containing the compiled CSS, and exports the
         // object that maps local names to generated class names. The compiled
         // CSS file contents are passed to the virtual CSS file via pluginData.
-        let contents = [options.outputCss ? `import "./${path__default["default"].basename(absolutePath)}${compiledCssQuery}";` : null, `export default ${JSON.stringify(exports)};`].filter(Boolean).join("\n");
+        let contents = [outputCss ? `import "./${path__default["default"].basename(absolutePath)}${compiledCssQuery}";` : null, `export default ${JSON.stringify(exports)};`].filter(Boolean).join("\n");
         let pluginData = {
           resolveDir,
           compiledCss
@@ -94,7 +102,7 @@ const cssModulesPlugin = options => {
         let absolutePath = path__default["default"].resolve(args.resolveDir, args.path);
         return {
           namespace,
-          path: path__default["default"].relative(options.rootDirectory, absolutePath),
+          path: path__default["default"].relative(config.rootDirectory, absolutePath),
           pluginData
         };
       });

@@ -1,5 +1,5 @@
 /**
- * @remix-run/dev v1.11.1
+ * @remix-run/dev v1.12.0
  *
  * Copyright (c) Remix Software Inc.
  *
@@ -18,6 +18,7 @@ var LRUCache = require('lru-cache');
 var parser = require('@babel/parser');
 var traverse = require('@babel/traverse');
 var generate = require('@babel/generator');
+var postcss = require('../utils/postcss.js');
 
 function _interopDefaultLegacy (e) { return e && typeof e === 'object' && 'default' in e ? e : { 'default': e }; }
 
@@ -51,10 +52,16 @@ const loaderForExtension = {
  * to the CSS bundle. This is primarily designed to support packages that
  * import plain CSS files directly within JS files.
  */
-const cssSideEffectImportsPlugin = options => {
+const cssSideEffectImportsPlugin = ({
+  config,
+  options
+}) => {
   return {
     name: pluginName,
     setup: async build => {
+      let postcssProcessor = await postcss.getPostcssProcessor({
+        config
+      });
       build.onLoad({
         filter: allJsFilesFilter,
         namespace: "file"
@@ -80,9 +87,16 @@ const cssSideEffectImportsPlugin = options => {
           resolveDir: args.resolveDir,
           kind: args.kind
         })).path;
+
+        // If the resolved path isn't a CSS file then we don't want
+        // to handle it. In our case this is specifically done to
+        // avoid matching Vanilla Extract's .css.ts/.js files.
+        if (!resolvedPath.split("?")[0].endsWith(".css")) {
+          return null;
+        }
         return {
-          path: path__default["default"].relative(options.rootDirectory, resolvedPath),
-          namespace: resolvedPath.endsWith(".css") ? namespace : undefined
+          path: path__default["default"].relative(config.rootDirectory, resolvedPath),
+          namespace
         };
       });
       build.onLoad({
@@ -90,6 +104,13 @@ const cssSideEffectImportsPlugin = options => {
         namespace
       }, async args => {
         let contents = await fse__default["default"].readFile(args.path, "utf8");
+        if (postcssProcessor) {
+          contents = (await postcssProcessor.process(contents, {
+            from: args.path,
+            to: args.path,
+            map: options.sourcemap
+          })).css;
+        }
         return {
           contents,
           resolveDir: path__default["default"].dirname(args.path),
@@ -99,11 +120,12 @@ const cssSideEffectImportsPlugin = options => {
     }
   };
 };
+const additionalLanguageFeatures = ["decorators"];
 const babelPluginsForLoader = {
-  js: [],
-  jsx: ["jsx"],
-  ts: ["typescript"],
-  tsx: ["typescript", "jsx"]
+  js: [...additionalLanguageFeatures],
+  jsx: ["jsx", ...additionalLanguageFeatures],
+  ts: ["typescript", ...additionalLanguageFeatures],
+  tsx: ["typescript", "jsx", ...additionalLanguageFeatures]
 };
 const cache = new LRUCache__default["default"]({
   max: 1000

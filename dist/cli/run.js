@@ -1,5 +1,5 @@
 /**
- * @remix-run/dev v1.11.1
+ * @remix-run/dev v1.12.0
  *
  * Copyright (c) Remix Software Inc.
  *
@@ -147,6 +147,13 @@ ${colors.logoBlue("R")} ${colors.logoGreen("E")} ${colors.logoYellow("M")} ${col
     $ remix routes
     $ remix routes my-app
     $ remix routes --json
+
+  ${colors.heading("Reveal the used entry point")}:
+
+    $ remix reveal entry.client
+    $ remix reveal entry.server
+    $ remix reveal entry.client --no-typescript
+    $ remix reveal entry.server --no-typescript
 `;
 const templateChoices = [{
   name: "Remix App Server",
@@ -184,7 +191,7 @@ const npxInterop = {
 async function dev(projectDir, flags) {
   if (!process.env.NODE_ENV) process.env.NODE_ENV = "development";
   if (flags.debug) inspector__default["default"].open();
-  await commands.dev(projectDir, process.env.NODE_ENV, flags.port);
+  await commands.dev(projectDir, process.env.NODE_ENV, flags);
 }
 
 /**
@@ -198,6 +205,7 @@ async function run(argv = process.argv.slice(2)) {
     throw new Error(`️🚨 Oops, Node v${versions.node} detected. Remix requires a Node version greater than 14.`);
   }
   let args = arg__default["default"]({
+    "--app-server-port": Number,
     "--debug": Boolean,
     "--no-delete": Boolean,
     "--dry": Boolean,
@@ -457,6 +465,12 @@ async function run(argv = process.argv.slice(2)) {
     case "codemod":
       {
         await commands.codemod(input[1], input[2]);
+        break;
+      }
+    case "reveal":
+      {
+        // TODO: simplify getting started guide
+        await commands.generateEntry(input[1], input[2], flags.typescript);
         break;
       }
     case "dev":

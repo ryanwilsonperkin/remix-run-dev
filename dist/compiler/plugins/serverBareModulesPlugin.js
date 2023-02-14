@@ -1,5 +1,5 @@
 /**
- * @remix-run/dev v1.11.1
+ * @remix-run/dev v1.12.0
  *
  * Copyright (c) Remix Software Inc.
  *
@@ -31,10 +31,8 @@ var fs__default = /*#__PURE__*/_interopDefaultLegacy(fs);
  * environments such as cloudflare.
  */
 function serverBareModulesPlugin(remixConfig, onWarning) {
-  let isDenoRuntime = remixConfig.serverBuildTarget === "deno";
-
   // Resolve paths according to tsconfig paths property
-  let matchPath = isDenoRuntime ? undefined : index.createMatchPath(remixConfig.tsconfigPath);
+  let matchPath = remixConfig.tsconfigPath ? index.createMatchPath(remixConfig.tsconfigPath) : undefined;
   function resolvePath(id) {
     if (!matchPath) {
       return id;
@@ -97,12 +95,8 @@ function serverBareModulesPlugin(remixConfig, onWarning) {
             onWarning(`The path "${path$1}" is imported in ` + `${path.relative(process.cwd(), importer)} but ` + `"${path$1}" was not found in your node_modules. ` + `Did you forget to install it?`, path$1);
           }
         }
-        switch (remixConfig.serverBuildTarget) {
-          // Always bundle everything for cloudflare.
-          case "cloudflare-pages":
-          case "cloudflare-workers":
-          case "deno":
-            return undefined;
+        if (remixConfig.serverDependenciesToBundle === "all") {
+          return undefined;
         }
         for (let pattern of remixConfig.serverDependenciesToBundle) {
           // bundle it if the path matches the pattern
@@ -110,7 +104,7 @@ function serverBareModulesPlugin(remixConfig, onWarning) {
             return undefined;
           }
         }
-        if (onWarning && !isNodeBuiltIn(packageName) && kind !== "dynamic-import" && (!remixConfig.serverBuildTarget || remixConfig.serverBuildTarget === "node-cjs")) {
+        if (onWarning && !isNodeBuiltIn(packageName) && kind !== "dynamic-import" && remixConfig.serverPlatform === "node") {
           warnOnceIfEsmOnlyPackage(packageName, path$1, onWarning);
         }
 

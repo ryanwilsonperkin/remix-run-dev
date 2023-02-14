@@ -1,5 +1,5 @@
 /**
- * @remix-run/dev v1.11.1
+ * @remix-run/dev v1.12.0
  *
  * Copyright (c) Remix Software Inc.
  *
@@ -12,7 +12,7 @@
 
 Object.defineProperty(exports, '__esModule', { value: true });
 
-var NpmCliPackageJson = require('@npmcli/package-json');
+var NPMCliPackageJson = require('@npmcli/package-json');
 var glob = require('fast-glob');
 var fs = require('fs');
 var _ = require('lodash');
@@ -31,7 +31,7 @@ var remix = require('./utils/remix.js');
 
 function _interopDefaultLegacy (e) { return e && typeof e === 'object' && 'default' in e ? e : { 'default': e }; }
 
-var NpmCliPackageJson__default = /*#__PURE__*/_interopDefaultLegacy(NpmCliPackageJson);
+var NPMCliPackageJson__default = /*#__PURE__*/_interopDefaultLegacy(NPMCliPackageJson);
 var glob__default = /*#__PURE__*/_interopDefaultLegacy(glob);
 var fs__default = /*#__PURE__*/_interopDefaultLegacy(fs);
 var semver__default = /*#__PURE__*/_interopDefaultLegacy(semver);
@@ -50,7 +50,7 @@ const getRemixVersionSpec = remixDeps => {
   return candidate.versionSpec;
 };
 const codemod = async (projectDir, options) => {
-  let pkg = await NpmCliPackageJson__default["default"].load(projectDir);
+  let pkg = await NPMCliPackageJson__default["default"].load(projectDir);
   let adapter = await task.task("Detecting Remix server adapter", async () => detect.detectAdapter(pkg.content), adapter => adapter ? `Detected Remix server adapter: ${colors.blue(adapter)}` : "No Remix server adapter detected");
   let runtime = await task.task("Detecting Remix server runtime", async () => detect.detectRuntime(pkg.content, adapter), runtime => `Detected Remix server runtime: ${colors.blue(runtime)}`);
   await task.task(`Removing magic ${code("remix")} package from dependencies`, async () => {

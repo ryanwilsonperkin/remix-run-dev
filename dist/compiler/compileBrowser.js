@@ -1,5 +1,5 @@
 /**
- * @remix-run/dev v1.11.1
+ * @remix-run/dev v1.12.0
  *
  * Copyright (c) Remix Software Inc.
  *
@@ -89,7 +89,7 @@ const createEsbuildConfig = (build, config, options) => {
     };
   } else {
     entryPoints = {
-      "entry.client": path__namespace.resolve(config.appDirectory, config.entryClientFile)
+      "entry.client": config.entryClientFilePath
     };
     for (let id of Object.keys(config.routes)) {
       // All route entry points are virtual modules that will be loaded by the
@@ -101,23 +101,21 @@ const createEsbuildConfig = (build, config, options) => {
   let {
     mode
   } = options;
-  let {
-    rootDirectory
-  } = config;
   let outputCss = isCssBuild;
   let plugins = [...config.plugins, deprecatedRemixPackagePlugin.deprecatedRemixPackagePlugin(options.onWarning), isCssBundlingEnabled(config) && isCssBuild ? cssBundleEntryModulePlugin.cssBundleEntryModulePlugin(config) : null, config.future.unstable_cssModules ? cssModulesPlugin.cssModulesPlugin({
+    config,
     mode,
-    rootDirectory,
     outputCss
   }) : null, config.future.unstable_vanillaExtract ? vanillaExtractPlugin.vanillaExtractPlugin({
     config,
     mode,
     outputCss
   }) : null, config.future.unstable_cssSideEffectImports ? cssSideEffectImportsPlugin.cssSideEffectImportsPlugin({
-    rootDirectory
+    config,
+    options
   }) : null, cssFilePlugin.cssFilePlugin({
-    mode,
-    rootDirectory
+    config,
+    options
   }), urlImportsPlugin.urlImportsPlugin(), mdx.mdxPlugin(config), browserRouteModulesPlugin.browserRouteModulesPlugin(config, /\?browser$/), emptyModulesPlugin.emptyModulesPlugin(config, /\.server(\.[jt]sx?)?$/), nodeModulesPolyfill.NodeModulesPolyfillPlugin()].filter(isNotNull);
   return {
     entryPoints,
@@ -192,9 +190,6 @@ const createBrowserCompiler = (remixConfig, options) => {
         return;
       }
       let cssBundlePath = cssBundleFile.path;
-
-      // Get esbuild's existing CSS source map so we can pass it to PostCSS
-      let cssBundleSourceMap = (_outputFiles$find = outputFiles.find(outputFile => isCssBundleFile(outputFile, ".css.map"))) === null || _outputFiles$find === void 0 ? void 0 : _outputFiles$find.text;
       let {
         css,
         map
@@ -204,8 +199,8 @@ const createBrowserCompiler = (remixConfig, options) => {
       postcssDiscardDuplicates__default["default"]()]).process(cssBundleFile.text, {
         from: cssBundlePath,
         to: cssBundlePath,
-        map: {
-          prev: cssBundleSourceMap,
+        map: options.sourcemap && {
+          prev: (_outputFiles$find = outputFiles.find(outputFile => isCssBundleFile(outputFile, ".css.map"))) === null || _outputFiles$find === void 0 ? void 0 : _outputFiles$find.text,
           inline: false,
           annotation: false,
           sourcesContent: true

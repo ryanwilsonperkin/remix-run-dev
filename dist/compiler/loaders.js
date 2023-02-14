@@ -1,5 +1,5 @@
 /**
- * @remix-run/dev v1.11.1
+ * @remix-run/dev v1.12.0
  *
  * Copyright (c) Remix Software Inc.
  *
@@ -38,6 +38,7 @@ const loaders = {
   ".aac": "file",
   ".avif": "file",
   ".css": "file",
+  ".csv": "file",
   ".eot": "file",
   ".fbx": "file",
   ".flac": "file",
@@ -63,6 +64,7 @@ const loaders = {
   ".ogg": "file",
   ".otf": "file",
   ".png": "file",
+  ".psd": "file",
   ".sql": "text",
   ".svg": "file",
   ".ts": "ts",

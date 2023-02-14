@@ -1,5 +1,5 @@
 /**
- * @remix-run/dev v1.11.1
+ * @remix-run/dev v1.12.0
  *
  * Copyright (c) Remix Software Inc.
  *
@@ -51,8 +51,10 @@ function isEntryPoint(config, file) {
 }
 async function watch(config$1, {
   mode = "development",
+  liveReloadPort,
   target = "node14",
   sourcemap = true,
+  reloadConfig = config.readConfig,
   onWarning = warnings.warnOnce,
   onCompileFailure: onCompileFailure$1 = onCompileFailure.logCompileFailure,
   onRebuildStart,
@@ -65,6 +67,7 @@ async function watch(config$1, {
   var _config$watchPaths;
   let options = {
     mode,
+    liveReloadPort,
     target,
     sourcemap,
     onCompileFailure: onCompileFailure$1,
@@ -81,22 +84,22 @@ async function watch(config$1, {
     let start = Date.now();
     remixCompiler.dispose(compiler);
     try {
-      config$1 = await config.readConfig(config$1.rootDirectory);
+      config$1 = await reloadConfig(config$1.rootDirectory);
     } catch (error) {
       onCompileFailure$1(error);
       return;
     }
     compiler = remixCompiler.createRemixCompiler(config$1, options);
-    await remixCompiler.compile(compiler);
-    onRebuildFinish === null || onRebuildFinish === void 0 ? void 0 : onRebuildFinish(Date.now() - start);
+    let assetsManifest = await remixCompiler.compile(compiler);
+    onRebuildFinish === null || onRebuildFinish === void 0 ? void 0 : onRebuildFinish(Date.now() - start, assetsManifest);
   }, 500);
   let rebuild = debounce__default["default"](async () => {
     onRebuildStart === null || onRebuildStart === void 0 ? void 0 : onRebuildStart();
     let start = Date.now();
-    await remixCompiler.compile(compiler, {
+    let assetsManifest = await remixCompiler.compile(compiler, {
       onCompileFailure: onCompileFailure$1
     });
-    onRebuildFinish === null || onRebuildFinish === void 0 ? void 0 : onRebuildFinish(Date.now() - start);
+    onRebuildFinish === null || onRebuildFinish === void 0 ? void 0 : onRebuildFinish(Date.now() - start, assetsManifest);
   }, 100);
   let toWatch = [config$1.appDirectory];
   if (config$1.serverEntryPoint) {
@@ -118,7 +121,7 @@ async function watch(config$1, {
   }).on("add", async file => {
     onFileCreated === null || onFileCreated === void 0 ? void 0 : onFileCreated(file);
     try {
-      config$1 = await config.readConfig(config$1.rootDirectory);
+      config$1 = await reloadConfig(config$1.rootDirectory);
     } catch (error) {
       onCompileFailure$1(error);
       return;
